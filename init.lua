@@ -1,7 +1,10 @@
-if not minetest.settings:get_bool("enable_damage") then
-	minetest.log("warning", "[stamina] Stamina will not load if damage is disabled (enable_damage=false)")
-	return
+if not minetest.settings:get_bool("asuna.nutrition",true) then
+	return -- mod is disabled
 end
+
+-- Translate Asuna nutrition settings to Stamina settings
+minetest.settings:set("stamina.exhaust_lvl",minetest.settings:get("asuna.nutrition_exhaustion_level") or 160)
+minetest.settings:set("stamina.starve_lvl",minetest.settings:get_bool("asuna.nutrition_starvation",false) and 1 or 0)
 
 stamina = {}
 local modname = minetest.get_current_modname()
@@ -26,27 +29,27 @@ stamina.settings = {
 	eat_particles = minetest.settings:get_bool("stamina.eat_particles", true),
 	sprint = minetest.settings:get_bool("stamina.sprint", true),
 	sprint_particles = minetest.settings:get_bool("stamina.sprint_particles", true),
-	sprint_lvl = get_setting("sprint_lvl", 6),
-	sprint_speed = get_setting("sprint_speed", 0.8),
-	sprint_jump = get_setting("sprint_jump", 0.1),
-	sprint_with_fast = minetest.settings:get_bool("stamina.sprint_with_fast", false),
-	tick = get_setting("tick", 800),
-	tick_min = get_setting("tick_min", 4),
-	health_tick = get_setting("health_tick", 4),
-	move_tick = get_setting("move_tick", 0.5),
+	sprint_lvl = get_setting("sprint_lvl", 0),
+	sprint_speed = get_setting("sprint_speed", 1),
+	sprint_jump = get_setting("sprint_jump", 0),
+	sprint_with_fast = minetest.settings:get_bool("stamina.sprint_with_fast", true),
+	tick = get_setting("tick", 1200),
+	tick_min = get_setting("tick_min", 0),
+	health_tick = get_setting("health_tick", 5),
+	move_tick = get_setting("move_tick", 0.25),
 	poison_tick = get_setting("poison_tick", 2.0),
-	exhaust_dig = get_setting("exhaust_dig", 3),
-	exhaust_place = get_setting("exhaust_place", 1),
-	exhaust_move = get_setting("exhaust_move", 1.5),
-	exhaust_jump = get_setting("exhaust_jump", 5),
-	exhaust_craft = get_setting("exhaust_craft", 20),
-	exhaust_punch = get_setting("exhaust_punch", 40),
-	exhaust_sprint = get_setting("exhaust_sprint", 28),
+	exhaust_dig = get_setting("exhaust_dig", 0.5),
+	exhaust_place = get_setting("exhaust_place", 0.5),
+	exhaust_move = get_setting("exhaust_move", 0.1),
+	exhaust_jump = get_setting("exhaust_jump", 0.1),
+	exhaust_craft = get_setting("exhaust_craft", 0.5),
+	exhaust_punch = get_setting("exhaust_punch", 0.5),
+	exhaust_sprint = get_setting("exhaust_sprint", 2),
 	exhaust_lvl = get_setting("exhaust_lvl", 160),
 	heal = get_setting("heal", 1),
-	heal_lvl = get_setting("heal_lvl", 5),
+	heal_lvl = get_setting("heal_lvl", 1),
 	starve = get_setting("starve", 1),
-	starve_lvl = get_setting("starve_lvl", 3),
+	starve_lvl = get_setting("starve_lvl", 0),
 	visual_max = get_setting("visual_max", 20),
 }
 local settings = stamina.settings
@@ -103,6 +106,7 @@ end
 
 function stamina.set_saturation(player, level)
 	set_player_attribute(player, attribute.saturation, level)
+	player_monoids.speed:add_change(player, 1 + (level / 80), "stamina:passive_speed")
 	player:hud_change(
 		get_hud_id(player),
 		"number",
@@ -173,9 +177,14 @@ local function poison_tick(player_name, ticks, interval, elapsed)
 	elseif elapsed > ticks then
 		stamina.set_poisoned(player, false)
 	else
+		-- Subtract from either HP or saturation randomly based on current saturation
+		local saturation = stamina.get_saturation(player)
+		local subtract_hp = math.random(20) > saturation
 		local hp = player:get_hp() - 1
-		if hp > 0 then
+		if subtract_hp and hp > 0 then
 			player:set_hp(hp, {type = "set_hp", cause = "stamina:poison"})
+		else
+			stamina.set_saturation(player,saturation - 1)
 		end
 		minetest.after(interval, poison_tick, player_name, ticks, interval, elapsed + 1)
 	end
@@ -385,8 +394,9 @@ local function health_tick()
 			saturation >= settings.heal_lvl and
 			hp < hp_max and
 			hp > 0 and
-			air > 0
-			and not stamina.is_poisoned(player)
+			air > 0 and
+			not stamina.is_poisoned(player) and
+			math.random(20) <= saturation -- random chance to heal
 		)
 		-- or damage player by 1 hp if saturation is < 2 (of 30)
 		local is_starving = (
