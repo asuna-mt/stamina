@@ -3,8 +3,8 @@ if not minetest.settings:get_bool("asuna.nutrition",true) then
 end
 
 -- Translate Asuna nutrition settings to Stamina settings
-minetest.settings:set("stamina.exhaust_lvl",minetest.settings:get("asuna.nutrition_exhaustion_level") or 160)
-minetest.settings:set("stamina.starve_lvl",minetest.settings:get_bool("asuna.nutrition_starvation",false) and 1 or 0)
+minetest.settings:set("stamina.exhaust_lvl",asuna.content.nutrition.exhaustion_level)
+minetest.settings:set("stamina.starve_lvl",asuna.content.nutrition.starvation)
 
 stamina = {}
 local modname = minetest.get_current_modname()
