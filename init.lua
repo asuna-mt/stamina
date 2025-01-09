@@ -68,25 +68,17 @@ local function is_player(player)
 end
 
 local function set_player_attribute(player, key, value)
-	if player.get_meta then
-		local meta = player:get_meta()
-		if meta and value == nil then
-			meta:set_string(key, "")
-		elseif meta then
-			meta:set_string(key, tostring(value))
-		end
+	local meta = player:get_meta()
+	if value == nil then
+		meta:set_string(key, "")
 	else
-		player:set_attribute(key, value)
+		meta:set_string(key, tostring(value))
 	end
 end
 
 local function get_player_attribute(player, key)
-	if player.get_meta then
-		local meta = player:get_meta()
-		return meta and meta:get_string(key) or ""
-	else
-		return player:get_attribute(key)
-	end
+	local meta = player:get_meta()
+	return meta:get_string(key)
 end
 
 local hud_ids_by_player_name = {}
@@ -129,7 +121,7 @@ function stamina.update_saturation(player, level)
 
 	local old = stamina.get_saturation(player)
 
-	if level == old then  -- To suppress HUD update
+	if level == old then -- To suppress HUD update
 		return
 	end
 
@@ -166,7 +158,7 @@ function stamina.set_poisoned(player, poisoned)
 		set_player_attribute(player, attribute.poisoned, "yes")
 	else
 		player:hud_change(hud_id, "text", "stamina_hud_fg.png")
-		set_player_attribute(player, attribute.poisoned, "no")
+		set_player_attribute(player, attribute.poisoned, nil)
 	end
 end
 
@@ -253,7 +245,7 @@ function stamina.exhaust_player(player, change, cause)
 
 	if exhaustion >= settings.exhaust_lvl then
 		exhaustion = exhaustion - settings.exhaust_lvl
-		stamina.change(player, -1)
+		stamina.change_saturation(player, -1)
 	end
 
 	stamina.set_exhaustion(player, exhaustion)
@@ -503,7 +495,7 @@ function minetest.do_item_eat(hp_change, replace_with_item, itemstack, player, p
 		stamina.log("action", "%s eats %s for %s stamina",
 			player:get_player_name(), itemname, hp_change)
 	end
-	minetest.sound_play("stamina_eat", {to_player = player:get_player_name(), gain = 0.7})
+	minetest.sound_play("stamina_eat", {to_player = player:get_player_name(), gain = 0.7}, true)
 
 	if hp_change > 0 then
 		stamina.change_saturation(player, hp_change)
@@ -529,7 +521,7 @@ function minetest.do_item_eat(hp_change, replace_with_item, itemstack, player, p
 		end
 	end
 
-	return nil  -- don't overwrite wield item a second time
+	return nil -- don't overwrite wield item a second time
 end
 
 minetest.register_on_joinplayer(function(player)
