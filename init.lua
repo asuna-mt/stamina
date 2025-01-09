@@ -4,7 +4,7 @@ end
 
 -- Translate Asuna nutrition settings to Stamina settings
 minetest.settings:set("stamina.exhaust_lvl",asuna.content.nutrition.exhaustion_level)
-minetest.settings:set("stamina.starve_lvl",asuna.content.nutrition.starvation)
+minetest.settings:set("stamina.starve_lvl",asuna.content.nutrition.starvation and 1 or 0)
 
 stamina = {}
 local modname = minetest.get_current_modname()
